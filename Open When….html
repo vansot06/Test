@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Open When…</title>
+<style>
+:root{--bg:#fff4f1;--card:#ffffff;--ink:#3a2530;--muted:#9a7b86;--accent:#e0577a;--line:#f3d9df;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1419;--card:#2a1d25;--ink:#f6e6ec;--muted:#b595a2;--accent:#ff7a9c;--line:#43303a}}
+:root[data-theme="dark"]{--bg:#1d1419;--card:#2a1d25;--ink:#f6e6ec;--muted:#b595a2;--accent:#ff7a9c;--line:#43303a}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.gate{max-width:360px;margin:22vh auto 0;padding:0 18px;text-align:center}
+.gate input{font:inherit;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:100%;margin:14px 0 10px;text-align:center}
+.gate button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:12px;padding:10px 22px;cursor:pointer}
+.gate p{color:var(--muted);font-size:.9rem;min-height:1.2em}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif}
+main{max-width:520px;margin:0 auto;padding:28px 18px 60px;text-align:center}
+h1{font-size:1.7rem;margin:6px 0 4px}
+.sub{color:var(--muted);font-size:.95rem;margin:0 0 22px}
+.env{font-size:5rem;line-height:1;background:none;border:0;cursor:pointer;transition:transform .2s}
+.env:hover:not(:disabled){transform:scale(1.08) rotate(-3deg)}
+.env:disabled{opacity:.4;cursor:not-allowed}
+.hint{color:var(--muted);font-size:.9rem;margin:8px 0 20px}
+.letter{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;text-align:left;line-height:1.65;font-size:1.05rem;animation:pop .5s ease}
+.letter .tag{display:block;color:var(--accent);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.letter .sig{display:block;margin-top:14px;text-align:right;color:var(--accent)}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+h2{font-size:1.05rem;margin:34px 0 10px;color:var(--muted);font-weight:normal}
+.list{display:flex;flex-direction:column;gap:8px;text-align:left}
+.list button{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 14px;font:inherit;font-size:.92rem;cursor:pointer;text-align:left}
+.list button:hover{border-color:var(--accent)}
+.count{color:var(--accent);font-weight:bold}
+</style>
+</head>
+<body>
+<div class="gate" id="gate" hidden>
+  <div style="font-size:3.5rem">💌</div>
+  <h1>Just for you</h1>
+  <input id="pw" type="password" placeholder="Passcode" autocomplete="off">
+  <button id="go">Open</button>
+  <p id="pwmsg"></p>
+</div>
+<main id="app">
+  <h1 id="title">Open When…</h1>
+  <p class="sub" id="sub"></p>
+  <button class="env" id="env" aria-label="Open a letter">💌</button>
+  <p class="hint" id="hint"></p>
+  <div id="view"></div>
+  <h2 id="archiveTitle" hidden>Letters you’ve opened</h2>
+  <div class="list" id="archive"></div>
+</main>
+<script>
+// ====== EDIT THESE ======
+const HER_NAME = "Love";        // her name or nickname
+const FROM_NAME = "TIN";  // your name
+const DAILY_LIMIT = 5;          // how many letters she can open per day
+const PASSCODE = "";            // optional lock, e.g. her birthday "1405". Leave "" for no lock
+// Add as many messages as you want. {name} becomes her name.
+// Each entry: [ "open when…" label, "the message" ]
+const MESSAGES = [
+["you miss me","{name}, close your eyes for a second. I’m right there next to you, doing something annoying like stealing your fries. The distance is only miles. The rest of me is yours."],
+["you had a bad day","Bad day? Come here. You don’t have to be strong or funny right now. Just breathe. Tomorrow I’ll be on the other side of a screen waiting to hear everything."],
+["you can’t sleep","It’s late, {name}. Somewhere out there I’m under the same moon thinking of you. Put the phone down, take a deep breath, and let me tuck you in from far away."],
+["you doubt yourself","You are far more capable than the voice in your head says. I’ve watched you handle things that would flatten most people. I believe in you completely."],
+["you’re smiling at your phone","Caught you. That smile is exactly why I built this. Keep it going."],
+["you want to hear something random","Fun fact: out of every person in the world, my brain picked you as its favorite notification."],
+["you’re hungry","Imagine I’m handing you your favorite snack right now. Okay, now actually go eat something. I mean it, {name}."],
+["you feel lonely","You’re not alone, even when it feels that way. Someone thinks about you every single day, and he’s lucky to do it."],
+["you’re stressed","Whatever is on your list, it can wait five minutes. Unclench your jaw, drop your shoulders, breathe out slowly. You’re doing better than you think."],
+["we’ve had a fight","I’d rather be on your team than win any argument. Whatever happened, I’m still here and I still choose you."],
+["you’re counting the days","Every day on the calendar is one day closer to me hugging you way too long. Worth every single one."],
+["you need a laugh","If I were there I’d do my worst dance until you laughed. Imagine it. It’s terrible. You’re welcome."],
+["you’re proud of yourself","Good. Say it out loud: I did that. I’m so proud of you I could burst, and I’m telling everyone who will listen."],
+["you’re getting ready to go out","You look amazing, and I’m not even there to see it. Go be your wonderful self. I’ll want a full report later."],
+["it’s a Monday","Mondays are rough, but you’re stronger than any alarm clock. Text me when you survive it."],
+["you wonder if I still think about you","Every day, {name}. In the quiet moments, in the busy ones, in the middle of code that refuses to compile. You’re always there."],
+["you want to plan our future","Someday we won’t need video calls. We’ll have a messy kitchen, a shared couch, and way too many photos of us. I can’t wait."],
+["you’re feeling pretty","You are. Not just today. Always. I just wanted you to hear it from the guy who keeps score."],
+["you’re tired of waiting","I know. It’s hard, and I won’t pretend it isn’t. But what we have is rare, and rare things are worth waiting for."],
+["you want a small promise","I promise to keep showing up, to be honest with you, and to make every call count. That’s a promise I plan to keep forever."],
+["you need courage","You’ve got this. Take one small step, then another. I’m standing behind you, cheering loudly and probably off-key."],
+["you just finished something hard","Look at you, finishing things like it’s nothing. It wasn’t nothing, and I saw how hard you worked."],
+["you’re bored","Challenge: send me the weirdest photo in your camera roll right now. I’ll send one back. Loser buys virtual ice cream."],
+["it’s raining where you are","Rain sounds nicer when you’re cozy and thinking of someone. Grab a blanket. I’m sending a hug through the clouds."],
+["you want to know why I love you","Because you make ordinary days feel like something. Because your laugh is my favorite sound. Because even far away, you feel like home."],
+["you’re sad about something small","Small things can still hurt, and that’s okay. Feel it, then come tell me. I’ll listen to every detail."],
+["you want to dream a little","Close your eyes. We’re walking somewhere new, hand in hand, with nowhere to be. That’s where I’m taking you someday."],
+["you need to hear you’re enough","You are enough. Not “almost.” Not “when you improve.” Right now, exactly as you are."],
+["you’re celebrating","Cheers, {name}! I’m raising my glass from here. Whatever the win is, you earned it."],
+["you forgot to drink water","Hydration check from your favorite human. Go. I’ll wait."],
+["you’re about to sleep","Goodnight, {name}. Sleep well, dream softly, and know that tomorrow starts with me thinking of you."]
+];
+// ====== END EDIT ======
+
+const KEY = "openwhen-v1";
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const fill = s => s.replace(/\{name\}/g, HER_NAME);
+const today = () => { const d = new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); };
+
+let state = { seen: [], opened: {} }; // seen: indexes in order; opened: {day: count}
+try { const raw = localStorage.getItem(KEY); if (raw) state = JSON.parse(raw); } catch(e) {}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+
+function usedToday(){ return state.opened[today()] || 0; }
+
+function showLetter(i, isNew){
+  const [label, text] = MESSAGES[i];
+  $("view").innerHTML =
+    '<div class="letter"><span class="tag">Open when ' + esc(fill(label)) + '</span>' +
+    esc(fill(text)) + '<span class="sig">— ' + esc(FROM_NAME) + ' ♥</span></div>';
+  if (isNew) window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function renderArchive(){
+  const box = $("archive"); box.innerHTML = "";
+  $("archiveTitle").hidden = state.seen.length === 0;
+  state.seen.slice().reverse().forEach(i => {
+    const b = document.createElement("button");
+    b.textContent = "Open when " + fill(MESSAGES[i][0]);
+    b.onclick = () => showLetter(i, false);
+    box.appendChild(b);
+  });
+}
+
+function untilMidnight(){
+  const n = new Date(), m = new Date(n); m.setHours(24,0,0,0);
+  const mins = Math.ceil((m - n) / 60000);
+  const h = Math.floor(mins / 60);
+  return h > 0 ? h + "h " + (mins % 60) + "m" : mins + "m";
+}
+
+function refresh(){
+  const left = Math.max(0, DAILY_LIMIT - usedToday());
+  $("env").disabled = left === 0;
+  $("hint").innerHTML = left > 0
+    ? 'You can open <span class="count">' + left + '</span> more letter' + (left === 1 ? "" : "s") + ' today'
+    : 'That’s all for today, ' + esc(HER_NAME) + '. New letters unlock in ' + untilMidnight() + ' ♥';
+  renderArchive();
+}
+
+$("env").onclick = () => {
+  if (usedToday() >= DAILY_LIMIT) return;
+  let pool = MESSAGES.map((_, i) => i).filter(i => !state.seen.includes(i));
+  if (pool.length === 0) { state.seen = []; pool = MESSAGES.map((_, i) => i); }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  state.seen.push(pick);
+  state.opened[today()] = usedToday() + 1;
+  save();
+  showLetter(pick, true);
+  refresh();
+};
+
+const UKEY = "openwhen-unlocked";
+let unlocked = !PASSCODE;
+try { if (localStorage.getItem(UKEY) === "1") unlocked = true; } catch(e) {}
+if (!unlocked) { $("app").hidden = true; $("gate").hidden = false; }
+$("go").onclick = () => {
+  if ($("pw").value.trim() === PASSCODE) {
+    try { localStorage.setItem(UKEY, "1"); } catch(e) {}
+    $("gate").hidden = true; $("app").hidden = false;
+  } else { $("pwmsg").textContent = "Not quite, try again ♥"; }
+};
+$("title").textContent = "Open When… " + HER_NAME;
+$("sub").textContent = "A little love from far away, one surprise at a time";
+refresh();
+setInterval(refresh, 60000);
+</script>
+</body>
+</html>
